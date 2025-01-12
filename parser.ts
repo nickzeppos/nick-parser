@@ -107,11 +107,8 @@ export default class Parser<A> {
     throw new Error("not implemented");
   }
 
-  // Compound
-  static coordinate(): Parser<Coordinate> {
-    throw new Error("not implemented");
-  }
-
+  // Static methods, those things which belong to Parser itself.
+  // 
   // Primitives
   static string<S extends string = string>(str: S): Parser<S> {
     return new Parser((loc: ParserLocation) =>
@@ -121,6 +118,56 @@ export default class Parser<A> {
     );
   }
 
+  static specificNumber<N extends number = number>(n: N): Parser<N> {
+    return new Parser((loc: ParserLocation) => 
+      loc.remaining().startsWith(String(n))
+        ? ParserResult.success(n, String(n).length)
+        : ParserResult.error(new ParserError(true))
+    )
+  }
+
+  private static readonly numbers: Array<string> = [
+    ...'0123456789',
+  ]
+
+  
+  static anyNumber(): Parser<number> {
+    return new Parser((loc: ParserLocation) => {      
+      // buffer we're going to tack valid numbers onto
+      let buffer = ''
+
+      // We're going to peek in one character at a time
+      while (true) {
+        const char = loc.peek(1)
+
+        // If it's in our numbers array, add it to buffer and advance 1 character
+        if (Parser.numbers.includes(char)) {
+          buffer += char
+          loc = loc.advance(1)
+          
+        // If it's not in our numbers array, break
+        } else {
+          break
+        }
+      }
+  
+    // If there's anything in the buffer, it's a success
+    if (buffer.length !== 0)
+      return ParserResult.success(Number(buffer), loc.getindex())
+    
+    // If there's nothing there, it's an error
+    return ParserResult.error(new ParserError(true));
+    })
+  }
+
+  // Compound
+  static coordinate(): Parser<Coordinate> {
+    throw new Error("not implemented");
+  }
+
+  
+
+  // There may or may not be A
   optional(): Parser<Maybe<A>> {
     // 
     // The context in which this is called is that there exists some Parser<A>
