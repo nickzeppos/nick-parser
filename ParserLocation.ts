@@ -16,7 +16,7 @@ export default class ParserLocation {
     return this.contents.slice(this.nextIndex, this.nextIndex + count);
   }
 
-  get index(): number {
+  getindex(): number {
     return this.nextIndex;
   }
 }
