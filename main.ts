@@ -5,9 +5,14 @@ if (import.meta.main) {
   const parser = Parser.coordinate(); // Parser<Coordinate>
   const maybeCoordinate = parser.run(string);
 
-  const fooParser = Parser.string("foo");
+  const fooParser = Parser.string("foo") // Parser<'foo'>
   fooParser.run("foo"); // returns 'foo'
   fooParser.run("bar"); // returns an error or something
+
+  const optionalFooParser = fooParser.optional() // Parser<Maybe<'foo'>>
+  optionalFooParser.run('foo') // returns 'foo'
+  optionalFooParser.run('bar') // returns nothing
+
 
   const fooBarParser = Parser.string("foo").and(Parser.string("bar")); // Parser<['foo', 'bar']>
   fooBarParser.run("foobar"); // returns ['foo', 'bar']
@@ -17,7 +22,9 @@ if (import.meta.main) {
   fooOrBarParser.run("foo"); // 'foo'
   fooOrBarParser.run("bar"); // fails if greedy
   fooOrBarParser.run("foobar"); // 'foo' ('bar' remains unconsumed)
-  fooOrBarParser.attempt("bar"); // 'bar'
+  // fooOrBarParser.attempt("bar"); // 'bar'
+
+
   // error can be "committed" or "uncommitted"
   // greedy by default (committed) for perf reasons
   // you need to explicitly back out with "attempt"

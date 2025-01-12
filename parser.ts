@@ -1,4 +1,5 @@
 import Either from "./Either.ts";
+import Maybe from "./Maybe.ts";
 import ParserError from "./ParserError.ts";
 import ParserLocation from "./ParserLocation.ts";
 import ParserResult from "./ParserResult.ts";
@@ -121,8 +122,30 @@ export default class Parser<A> {
   }
 
   optional(): Parser<Maybe<A>> {
-    // TODO: try to implement this
-    throw new Error("not implemented");
+    // 
+    // The context in which this is called is that there exists some Parser<A>
+    // And we're trying to modify it's behavior to create Parser<Maybe<A>>
+    // 
+    // So what do we need to do?
+    // Create a new parser, which, inside
+    // Runs the "current" parser, via this._run
+    // If the current parser succeeds, the new parser will return a successful parser result wrapped around a Maybe.just
+    // If the current parser fails, the new parser will return a successful parser result wrapped around a Maybe.nothing
+    const newParser = new Parser<Maybe<A>>((loc: ParserLocation) => {
+      // run current parser
+      const incomingParserResult = this._run(loc)
+      
+      // fail case, success w/ maybe nothing
+      if (!incomingParserResult.isSuccess()) {
+        return ParserResult.success(Maybe.nothing(), 0)
+      }
+
+      // success case, success with maybe.just
+      const { data, consumed } = incomingParserResult.getData()
+      return ParserResult.success(Maybe.just(data), consumed)
+    })
+    
+    return newParser
   }
 
   many(): Parser<A[]> {
