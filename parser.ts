@@ -9,7 +9,6 @@ export type Coordinate = {
   y: number;
 };
 
-
 // What is a type constructor?
 // - thing that takes a type (or types) and constructs a new type.
 
@@ -21,13 +20,13 @@ export type Coordinate = {
 // - is a unary type constructor, e.g., Functor<A>.
 // - has a function `fmap` that satisfies the Functor laws, identity and composition.
 // - fmap you might think of as a function that allows you to lift and operate on the inner value of a functor without disturbing the context its contents
-//  - i.e., given F<A>, operate on A while preserving F 
+//  - i.e., given F<A>, operate on A while preserving F
 // - and the laws of identity and composition, provided fmap satisfies them, ensures that this can actually be done
 
 //
 // identity
-// 
-// provided: 
+//
+// provided:
 // Functor f
 // f's fmap is fmap
 // fn is a: A -> b: B
@@ -59,20 +58,20 @@ export type Coordinate = {
 // f's fmap is fmap
 // function g: A -> B
 // function h: B -> C
-// compose: (h . g)
+// compose: h . g
 // law of composition says that fmap must satisfy
-// fmap((h . g), fa) === fmap(h, fmap(g, fa))
+// fmap (h . g) = fmap h . fmap g
 //
 // We take our fmap from the identity case, above
 // const fmap = <A,B>(fn: (a: A) => B, fa: Functor<A>) => Functor<B>
-// 
+//
 // define two functions
 // const g: G = <A,B>(a: A) => B
 // const h: H = <B,C>(b: B) => C
 // and let's define compose
 // const compose = <A, B, C>(
-//  h: (b: B) => C, 
-//  g: (a: A) => B): 
+//  h: (b: B) => C,
+//  g: (a: A) => B):
 //  (a: A) => C =>
 //  h(g(a))
 //
@@ -84,15 +83,36 @@ export type Coordinate = {
 // That is, given two operations, h and g, and given the desire to apply them to Functor<A>, the following 2 cases are equivalent:
 // 1. Operate inside the Functor context once, i.e., lift A, apply g, get B, apply h, get C, put C back in to get Functor<C>
 // 2. Operate inside the Functor context over and over, i.e., lift A, apply g, put B back in to get Functor<B>, lift B, apply h, put C back in to get Functor<C>
-// the outcome of both procedures is the same, both return Functor<C> 
+// the outcome of both procedures is the same, both return Functor<C>
 //
 // And again, just to get used to some more FP like syntax, moving things "left-to-right"...
-// compose : (b -> c) -> (a -> b) -> (a -> c)
+// (.) : (b -> c) -> (a -> b) -> (a -> c)
 // fmap : Functor f => (a -> b) -> f a -> f b
-// fmap compose : f a -> f b
-// fmap compose f a : f c
+
+// fmap compose fa : f b
 // fmap compose f a = f c
 
+/*
+a2b : a -> b
+b2c : b -> c
+fmap b2c : f b -> f c
+fmap a2b : f a -> f b
+
+fmap (b2c . a2b) = fmap b2c . fmap a2b
+
+left side:
+(.) : ...
+(.) b2c : ...
+(.) b2c a2b : ...
+b2c . a2b : ...
+fmap (b2c . a2b) : f a -> f c
+
+right side:
+(.) : (b -> c) -> (a -> b) -> (a -> c)
+(.) (fmap b2c) : (a -> f b) -> (a -> f c)
+(.) (fmap b2c) (fmap a2b) : f a -> f c
+fmap b2c . fmap a2b : f a -> f c
+*/
 
 export default class Parser<A> {
   constructor(public readonly _run: (loc: ParserLocation) => ParserResult<A>) {}
@@ -108,8 +128,13 @@ export default class Parser<A> {
   }
 
   // Static methods, those things which belong to Parser itself.
-  // 
+  //
   // Primitives
+  static succeed<B>(value: B): Parser<B> {
+    // AKA Applicative's Pure
+    return new Parser(() => ParserResult.success(value, 0));
+  }
+
   static string<S extends string = string>(str: S): Parser<S> {
     return new Parser((loc: ParserLocation) =>
       loc.remaining().startsWith(str)
@@ -119,45 +144,42 @@ export default class Parser<A> {
   }
 
   static specificNumber<N extends number = number>(n: N): Parser<N> {
-    return new Parser((loc: ParserLocation) => 
+    return new Parser((loc: ParserLocation) =>
       loc.remaining().startsWith(String(n))
         ? ParserResult.success(n, String(n).length)
         : ParserResult.error(new ParserError(true))
-    )
+    );
   }
 
-  private static readonly numbers: Array<string> = [
-    ...'0123456789',
-  ]
+  private static readonly numbers: Array<string> = [..."0123456789"];
 
-  
   static anyNumber(): Parser<number> {
-    return new Parser((loc: ParserLocation) => {      
+    return new Parser((loc: ParserLocation) => {
       // buffer we're going to tack valid numbers onto
-      let buffer = ''
+      let buffer = "";
 
       // We're going to peek in one character at a time
       while (true) {
-        const char = loc.peek(1)
+        const char = loc.peek(1);
 
         // If it's in our numbers array, add it to buffer and advance 1 character
         if (Parser.numbers.includes(char)) {
-          buffer += char
-          loc = loc.advance(1)
-          
-        // If it's not in our numbers array, break
+          buffer += char;
+          loc = loc.advance(1);
+
+          // If it's not in our numbers array, break
         } else {
-          break
+          break;
         }
       }
-  
-    // If there's anything in the buffer, it's a success
-    if (buffer.length !== 0)
-      return ParserResult.success(Number(buffer), loc.getindex())
-    
-    // If there's nothing there, it's an error
-    return ParserResult.error(new ParserError(true));
-    })
+
+      // If there's anything in the buffer, it's a success
+      if (buffer.length !== 0)
+        return ParserResult.success(Number(buffer), loc.getindex());
+
+      // If there's nothing there, it's an error
+      return ParserResult.error(new ParserError(true));
+    });
   }
 
   // Compound
@@ -165,34 +187,11 @@ export default class Parser<A> {
     throw new Error("not implemented");
   }
 
-  
-
   // There may or may not be A
   optional(): Parser<Maybe<A>> {
-    // 
-    // The context in which this is called is that there exists some Parser<A>
-    // And we're trying to modify it's behavior to create Parser<Maybe<A>>
-    // 
-    // So what do we need to do?
-    // Create a new parser, which, inside
-    // Runs the "current" parser, via this._run
-    // If the current parser succeeds, the new parser will return a successful parser result wrapped around a Maybe.just
-    // If the current parser fails, the new parser will return a successful parser result wrapped around a Maybe.nothing
-    const newParser = new Parser<Maybe<A>>((loc: ParserLocation) => {
-      // run current parser
-      const incomingParserResult = this._run(loc)
-      
-      // fail case, success w/ maybe nothing
-      if (!incomingParserResult.isSuccess()) {
-        return ParserResult.success(Maybe.nothing(), 0)
-      }
-
-      // success case, success with maybe.just
-      const { data, consumed } = incomingParserResult.getData()
-      return ParserResult.success(Maybe.just(data), consumed)
-    })
-    
-    return newParser
+    return this.map(Maybe.just) // success
+      .or<Maybe<A>>(Parser.succeed(Maybe.nothing<A>())) // error
+      .map((result) => result.unwrap()); // merge types for both branches
   }
 
   many(): Parser<A[]> {
@@ -215,9 +214,12 @@ export default class Parser<A> {
   or<B>(pb: Parser<B>): Parser<Either<A, B>> {
     throw new Error("not implemented");
   }
+
+  // Functor
+  map<B>(f: (a: A) => B): Parser<B> {
+    return new Parser((loc) => this._run(loc).mapSuccess(f));
+  }
 }
-
-
 
 // interface Functor<A> {
 //   fmap: <B>(fn: (a: A) => B) => Functor<B>

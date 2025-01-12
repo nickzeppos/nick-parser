@@ -19,14 +19,37 @@ export default class ParserResult<A> {
     // We want to return based on whether or not data represents a successful parse
     // data is an Either, where the right-handed side is success, while the left is error
     // So we want to return based on whether or not data is right handed (i.e., true if right, else false)
-    return this.data.isRight()
+    return this.data.isRight();
   }
 
   // Methods for getting data out
   getData(): ParserSuccess<A> {
     if (this.isSuccess()) {
-      return this.data.getRight()
+      return this.data.getRight();
     }
-    throw new Error('Tried getting data out of an unsuccessful parser result')
+    throw new Error("Tried getting data out of an unsuccessful parser result");
+  }
+
+  getError(): ParserError {
+    if (!this.isSuccess()) {
+      return this.data.getLeft();
+    }
+    throw new Error("Tried getting error out of a successful parser result");
+  }
+
+  match<B>(matchers: {
+    success: (result: ParserSuccess<A>) => B;
+    error: (result: ParserError) => B;
+  }): B {
+    return this.isSuccess()
+      ? matchers.success(this.getData())
+      : matchers.error(this.getError());
+  }
+
+  mapSuccess<B>(f: (a: A) => B): ParserResult<B> {
+    return this.match({
+      success: (data) => ParserResult.success(f(data.data), data.consumed),
+      error: (error) => ParserResult.error(error),
+    });
   }
 }
